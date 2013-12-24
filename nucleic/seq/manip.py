@@ -19,11 +19,13 @@ _RNA_TRANS = maketrans(_rna_in, _rna_out)
 def reverse(seq):
     return seq[::-1]
 
+
 def complement(seq, na_type='DNA'):
     if na_type == 'DNA':
         return seq.translate(_DNA_TRANS)
     else:
         return seq.translate(_RNA_TRANS)
+
 
 def reverse_complement(seq, na_type='DNA'):
     return reverse(complement(seq, na_type))
