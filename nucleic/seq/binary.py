@@ -141,7 +141,7 @@ class Basic:
         return int(Basic._seq_to_bin(seq), 2), len(seq)
 
 
-class LUT:
+class BinarySeq:
     '''
     Encodes DNA sequences with a lookup table and performs basic operations
     (complement, reverse, reverse-complement)
@@ -215,40 +215,38 @@ if __name__ == '__main__':
             a = Basic.encode(rseq)
             rseq_out = Basic.decode(*a)
 
-    def testLUT():
+    def testBinarySeq():
         global rseq_out
         for x in xrange(10000):
-            enc = LUT.encode(rseq)
-            rseq_out = LUT.decode(enc)
+            enc = BinarySeq.encode(rseq)
+            rseq_out = BinarySeq.decode(enc)
 
     print '-->Timed 10000X for 25mer:'
     rseq = ''.join([random.choice('ATGC') for x in xrange(25)])
     a = timeit.Timer('testBasic()', 'from __main__ import testBasic')
     print 'Basic:', a.timeit(1)
-    c = timeit.Timer('testLUT()', 'from __main__ import testLUT')
-    print 'LUT:', c.timeit(1)
+    c = timeit.Timer('testBinarySeq()', 'from __main__ import testBinarySeq')
+    print 'BinarySeq:', c.timeit(1)
     # cProfile.run('testBasic()')
-    # cProfile.run('testLUT()')
-    # cProfile.run('testLUT()')
+    # cProfile.run('testBinarySeq()')
 
     print '\n--->Timed 10000X for 500mer:'
     rseq = ''.join([random.choice('ATGC') for x in xrange(500)])
     a = timeit.Timer('testBasic()', 'from __main__ import testBasic')
     print 'Basic:', a.timeit(1)
-    c = timeit.Timer('testLUT()', 'from __main__ import testLUT')
-    print 'LUT:', c.timeit(1)
+    c = timeit.Timer('testBinarySeq()', 'from __main__ import testBinarySeq')
+    print 'BinarySeq:', c.timeit(1)
     # cProfile.run('testBasic()')
-    # cProfile.run('testLUT()')
-    # cProfile.run('testLUT()')
+    # cProfile.run('testBinarySeq()')
 
-    print '\nFull test suite with LUT:'
+    print '\nFull test suite with BinarySeq: '
     rseq = ''.join([random.choice('ATGC') for x in xrange(random.randint(20,30))])
     print 'random_seq_in:\t\t\t', rseq
-    enc = LUT.encode(rseq)
-    print 'random_seq_out:\t\t\t', LUT.decode(enc)
-    enc = LUT.encode(rseq)
-    print 'random_seq_compl:\t\t', LUT.decode(LUT.compl(enc))
-    enc = LUT.encode(rseq)
-    print 'random_seq_rev:\t\t\t', LUT.decode(LUT.rev(enc))
-    enc = LUT.encode(rseq)
-    print 'random_seq_rev_compl:\t', LUT.decode(LUT.rev_compl(enc))
+    enc = BinarySeq.encode(rseq)
+    print 'random_seq_out:\t\t\t', BinarySeq.decode(enc)
+    enc = BinarySeq.encode(rseq)
+    print 'random_seq_compl:\t\t', BinarySeq.decode(BinarySeq.compl(enc))
+    enc = BinarySeq.encode(rseq)
+    print 'random_seq_rev:\t\t\t', BinarySeq.decode(BinarySeq.rev(enc))
+    enc = BinarySeq.encode(rseq)
+    print 'random_seq_rev_compl:\t', BinarySeq.decode(BinarySeq.rev_compl(enc))

@@ -161,7 +161,7 @@ def calc_homodimer(seq):
     return calc_heterodimer(seq, seq)
 
 
-def assess_seq(seq):
+def assess_oligo(seq):
     '''
     Return the thermodynamic characteristics of hairpin/homodimer structures.
 
