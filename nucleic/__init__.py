@@ -1,5 +1,5 @@
 '''
-nucleic | nucleic.py
+nucleic
 
 A python toolkit for low-level manipulation of nucleic acid sequencies
 
