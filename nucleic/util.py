@@ -6,6 +6,7 @@ compatibility
 
 '''
 
+
 from __future__ import print_function
 
 # Underscore imports for TermporaryDirectory (see issue #10188)
@@ -13,6 +14,7 @@ import warnings as _warnings
 import sys as _sys
 import os as _os
 
+import functools
 import atexit
 
 from tempfile import mkdtemp
@@ -126,3 +128,15 @@ def unique_fn(directory, file_ext=''):
         except:
             return fp
 
+
+def memoize(obj):
+    ''' General purpose memoization decorator from PythonDecoratorLibrary '''
+    _cache = obj.cache = {}
+
+    @functools.wraps(obj)
+    def memoizer(*args, **kwargs):
+        key = str(args) + str(kwargs)
+        if key not in _cache:
+            _cache[key] = obj(*args, **kwargs)
+        return _cache[key]
+    return memoizer

@@ -49,7 +49,7 @@ _CALCULATION_PARAMETERS = {
     'DIVALENT_CONC': {
         'FLAG':         'dv',
         'UNITS':        'mM',
-        'VAL':          0
+        'VAL':          0.01
     },
     'THERMO_MODEL': {
         'FLAG':         'tp',
