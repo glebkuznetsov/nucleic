@@ -33,7 +33,7 @@ _CALCULATION_PARAMETERS = {
 
     'DNA_CONC': {
         'FLAG':         'd',
-        'UNITS':        'mM',
+        'UNITS':        'nM',
         'VAL':          50
     },
     'DNTP_CONC': {
@@ -109,7 +109,7 @@ def _assemble_params(call_type):
 
 def calc_tm(seq):
     ''' Return the tm of `seq` as a float. '''
-    args = ['oligotm', seq] + _assemble_params('oligotm')
+    args = ['oligotm'] + _assemble_params('oligotm') + [seq]
     out = subprocess.check_output(args, stderr=DEV_NULL)
     return float(out.strip())
 
@@ -134,8 +134,8 @@ def calc_hairpin(seq):
     Returns None if the sequences does not form a hairpin returns None.
 
     '''
-    args = ['ntthal', '-a', 'HAIRPIN', '-s1', seq] + \
-           _assemble_params('ntthal')
+    args = ['ntthal', '-a', 'HAIRPIN'] + \
+           _assemble_params('ntthal') + ['-s1', seq]
     out = subprocess.check_output(args, cwd=TMP_DIR)
     return _parse_nthhal(out)
 
@@ -146,8 +146,7 @@ def calc_heterodimer(seq, seq2):
     Returns None if the sequences do not form a heterodimer.
 
     '''
-    args = ['ntthal', '-s1', seq, '-s2', seq2] + \
-           _assemble_params('ntthal')
+    args = ['ntthal'] + _assemble_params('ntthal') + ['-s1', seq, '-s2', seq2]
     out = subprocess.check_output(args, stderr=DEV_NULL, cwd=TMP_DIR)
     return _parse_nthhal(out)
 
@@ -175,7 +174,7 @@ def assess_oligo(seq):
 
 
 def _write_boulderIO(fp, p3_args):
-    with open(fn, 'wb') as fd:
+    with open(fp, 'wb') as fd:
         for k, v in p3_args.items():
             fd.write(k + '=' + v + '\n')
         fd.write('=')
@@ -183,7 +182,7 @@ def _write_boulderIO(fp, p3_args):
 
 def _parse_boulderIO(fp):
     data_dict = OrderedDict()
-    with open(fn, 'rb') as fd:
+    with open(fp, 'rb') as fd:
         for line in fd:
             k,v = line.strip().split('=')
             data_dict[k] = v
@@ -195,10 +194,10 @@ def run_p3_main(p3_args):
 
     Returns an ordered dict of the boulderIO-format primer3 output file
     '''
-    fp_in = unique_fn(TMP_DIR, ext='.in')
-    fp_out = fp_in.rstrip('.in') + '.out'
+    fp_in = unique_fn(TMP_DIR, file_ext='.in')
     _write_boulderIO(fp_in, p3_args)
-    subprocess.check_call(['{0}/primer3_core', '--output', fp_out, fp_in],
+    fp_out = fp_in.rstrip('.in') + '.out'
+    subprocess.check_call(['primer3_core', '--output', fp_out, fp_in],
                           stderr=DEV_NULL)
-    return _parsePrimer3Output(fp_out)
+    return _parse_boulderIO(fp_out)
 

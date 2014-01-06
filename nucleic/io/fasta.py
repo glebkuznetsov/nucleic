@@ -22,3 +22,13 @@ def parse_fasta(fasta_fn):
                            ''.join(match.group(2).strip().split())))
     return records
 
+_ssprobs_re = re.compile(r'(gi.*)[\t]([^gi]+)')
+
+def parseSSprobs(ssprobs_fn):
+    ''' Parse a ssprobs fasta-format file and return a FASTA_RECORD '''
+    records = []
+    with open(ssprobs_fn, 'rb') as fd:
+        for match in re.finditer(_ssprobs_re, fd.read()):
+            records.append(FASTA_RECORD(match.group(1).strip(),
+                           ''.join(match.group(2).strip().split())))
+    return records
