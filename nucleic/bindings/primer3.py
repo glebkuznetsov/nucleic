@@ -136,7 +136,7 @@ def calc_hairpin(seq):
     '''
     args = ['ntthal', '-a', 'HAIRPIN'] + \
            _assemble_params('ntthal') + ['-s1', seq]
-    out = subprocess.check_output(args, cwd=TMP_DIR)
+    out = subprocess.check_output(args, cwd=TMP_DIR, stderr=DEV_NULL)
     return _parse_nthhal(out)
 
 

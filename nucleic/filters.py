@@ -96,3 +96,17 @@ def max_run(seq, max_a=None, max_t=None, max_g=None, max_c=None,
     return True
 
 
+def three_prime(seq, max_gcs, max_gc_run):
+    tp = seq[-5:]
+    gcs = tp.count('G') + tp.count('C')
+    if gcs > max_gcs:
+        return False
+    gc_run = 0
+    for b in tp:
+        if b in 'GC':
+            gc_run += 1
+            if gc_run > max_gc_run:
+                return False
+        else:
+            gc_run = 0
+    return True 

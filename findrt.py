@@ -20,7 +20,8 @@ from math import log, ceil
 from nucleic.bindings import unafold, primer3
 from nucleic.seq import barcode, manip
 from nucleic.io import fasta
-
+from nucleic import filters
+from nucleic import thermo
 
 CWD = os.path.dirname(os.path.realpath(__file__))
 
@@ -41,12 +42,17 @@ class Primer(object):
         self.init_p3 = init_p3_data    # Initial p3 data
         self.final_p3 = None           # Final p3 data (includes T2S + bc)
         self.full_seq = None           # Full sequence (T2S + barcode + seq)
+        self.linear = None
+        self.pcr_f = None
+        self.pcr_r = None
+        self.full_seq_linear = None
+        self.full_seq_pcr = None
         self.score = None              # Final weighted score
 
 
     def _calcFullP3(self):
         self.final_p3 = primer3.assess_oligo(Primer.T2S + self.seq)
-        p3_assess_score = ((self.final_p3[0][3] or 0) +
+        p3_assess_score = max((self.final_p3[0][3] or 0),
                           (self.final_p3[1][3] or 0))
         return p3_assess_score
 
@@ -188,9 +194,9 @@ class Transcript(object):
             'PRIMER_MIN_SIZE': '12',
             'PRIMER_OPT_SIZE': '14',
             'PRIMER_EXPLAIN_FLAG': '1',
-            'PRIMER_MIN_TM': '43',
-            'PRIMER_OPT_TM': '47',
-            'PRIMER_MAX_TM': '51',
+            'PRIMER_MIN_TM': '40',
+            'PRIMER_OPT_TM': '43',
+            'PRIMER_MAX_TM': '46',
             'PRIMER_NUM_RETURN': '100'
         }
         return primer3.run_p3_main(p3_args)
@@ -300,18 +306,14 @@ def process_file(fn, outfolder=None, exclude_seqs=None):
         t.genTiledPrimers()
         designed_primers.extend(t.primers[:10])
         tiled_primers.extend(t.tiled_primers)
-    with open(tiled_out_fn, 'wb') as tiled_out_fd, \
-         open(designed_out_fn, 'wb') as designed_out_fd:
-        print 'Writing tiled output to:', tiled_out_fn
-        writeOutput(tiled_out_fd, tiled_primers)
-        print 'Writing designed output to:', designed_out_fn
-        writeOutput(designed_out_fd, designed_primers)
-        print 'Complete.'
-        print '*' * 40 + '\n'
+    return {'fn': fn, 'designed': designed_primers, 
+            'tiled': tiled_primers}
 
 
 def writeOutput(out_fd, primer_list):
     headers = '\t'.join(['gene_ref', 'full_primer', 't2s', 'barcode', 'gs_primer',
+                        'linear_amp_primer', 'to_syntheize_linear', 'pcr_f',
+                        'pcr_r', 'to_synthesize_pcr',
                        'start_bp', 'designed', 'weighted_score', 'gs_p3_tm',
                        'gs_p3_gc','gs_p3_self_any_th', 'gs_p3_self_end_th',
                        'gs_p3_harpin_th', 'gs_p3_end_stability',
@@ -325,17 +327,169 @@ def writeOutput(out_fd, primer_list):
         ip3d = p.init_p3
         fp3d = p.final_p3
         primer_data = '\t'.join(str(x) for x in [p.gene, p.full_seq,
-                               Primer.T2S, p.barcode, p.seq, p.start,
+                               Primer.T2S, p.barcode, p.seq, p.linear, 
+                               manip.reverse_complement(p.full_seq_linear),
+                               p.pcr_f, p.pcr_r, p.full_seq_pcr, p.start,
                                p.designed, p.score, ip3d.get('TM'),
                                ip3d.get('GC_PERCENT'), ip3d.get('SELF_ANY_TH'),
                                ip3d.get('SELF_END_TH'), ip3d.get('HAIRPIN_TH'),
                                ip3d.get('END_STABILITY'), ip3d.get('PENALTY'),
-                               fp3d['homo_out']['dG'], fp3d['homo_out']['dS'],
-                               fp3d['homo_out']['dH'], fp3d['homo_out']['t'],
-                               fp3d['hrp_out']['dG'], fp3d['hrp_out']['dS'],
-                               fp3d['hrp_out']['dH'], fp3d['hrp_out']['t']])
+                               fp3d[1][2] if fp3d[1] else 'None', 
+                               fp3d[1][0] if fp3d[1] else 'None',
+                               fp3d[1][1] if fp3d[1] else 'None',
+                               fp3d[1][3] if fp3d[1] else 'None',
+                               fp3d[0][2] if fp3d[0] else 'None',
+                               fp3d[0][0] if fp3d[0] else 'None',
+                               fp3d[0][1] if fp3d[0] else 'None',
+                               fp3d[0][3] if fp3d[0] else 'None'])
         out_fd.write(primer_data + '\n')
 
+
+def find_linear_primer(primer_object_list, full_list, full_list_rc):
+    def _gen_primer():
+        while True:
+            p = ''.join([random.choice('ATGC') for x in range(13)]) + 'GAGTC' + \
+                ''.join([random.choice('ATGC') for x in range(4)])
+            if 'GAGTC' in p[0:15]:
+                continue
+            if filters.max_run(p, max_a=5, max_t=5, max_g=3, max_c=3,
+                               max_at=5, max_gc=4):
+                if 48 < thermo.calc_tm(p, conc_nm=1000.0, monovalent=20.0, 
+                                       divalent=2.0, dntp=0.4) < 52:
+                    scores = primer3.assess_oligo(p)
+                    if not scores[0] or scores[0][3] < 40:
+                        if not scores[1] or scores[1][3] < 40:
+                            return p
+    while True:
+        failed = False
+        lp = _gen_primer()
+        for o in full_list:
+            hetero = primer3.calc_heterodimer(lp, o)
+            if hetero and hetero[3] > 40:
+                failed = True
+                break
+        if failed:
+            continue
+        for o in full_list_rc:
+            hetro = primer3.calc_heterodimer(lp, o)
+            if hetero and hetero[3] > 40:
+                failed = True
+                break
+        if not failed:
+            break
+    print lp
+    for p in primer_object_list:
+        p.linear = lp
+        p.full_seq_linear = lp + p.full_seq
+
+
+def find_pcr_primers(primer_object_list, full_list, full_list_rc):
+    def _gen_primer():
+        while True:
+            p = ''.join([random.choice('ATGC') for x in range(15)]) + 'GAGTC' + \
+                ''.join([random.choice('ATGC') for x in range(4)])
+            if 'GAGTC' in p[0:15]:
+                continue
+            if filters.max_run(p, max_a=5, max_t=5, max_g=3, max_c=3,
+                               max_at=5, max_gc=4):
+                if filters.three_prime(p, max_gcs=3, max_gc_run=2):
+                    if 58 < thermo.calc_tm(p, conc_nm=500.0, monovalent=50.0, 
+                                           divalent=1.2, dntp=0.8) < 60:
+                        scores = primer3.assess_oligo(p)
+                        if not scores[0] or scores[0][3] < 40:
+                            if not scores[1] or scores[1][3] < 40:
+                                return p
+    while True:
+        failed = False
+        lp = _gen_primer()
+        for o in full_list:
+            hetero = primer3.calc_heterodimer(lp, o)
+            if hetero and hetero[3] > 40:
+                failed = True
+                break
+        if failed:
+            continue
+        for o in full_list_rc:
+            hetero = primer3.calc_heterodimer(lp, o)
+            if hetero and hetero[3] > 40:
+                failed = True
+                break
+        if not failed:
+            break
+    for p in primer_object_list:
+        p.pcr_f = lp
+        p.full_seq_pcr = lp + p.full_seq
+    while True:
+        failed = False
+        rp = _gen_primer()
+        hetero = primer3.calc_heterodimer(lp, rp)
+        if hetero and hetero[3] > 40:
+            continue
+        for o in full_list:
+            hetero = primer3.calc_heterodimer(rp, o)
+            if hetero and hetero[3] > 40:
+                failed = True
+                break
+        if failed:
+            continue
+        for o in full_list_rc:
+            hetero = primer3.calc_heterodimer(rp, o)
+            if hetero and hetero[3] > 40:
+                failed = True
+                break
+        if not failed:
+            break    
+    for p in primer_object_list:
+        p.pcr_r = rp
+        p.full_seq_pcr = p.full_seq_pcr + manip.reverse_complement(rp)  
+    print 'lp', lp, 'rp', rp
+
+
+def main(infiles, outfolder, exclude_seqs):
+    processed = []
+    for fn in infiles:
+        processed.append(process_file(fn, outfolder=outfolder, 
+                                      exclude_seqs=exclude_seqs))
+    # Find linear amplification oligos
+    # SDA takes place in 1X thermopol buffer + 0.4 mM dNTP
+    # 10 mM NH4+, 10 mM K+, 2 mM Mg2+ (optimized) 
+    primer3.update_params({
+        'DNA_CONC': 1000, # As per He and Jiang, 2013
+        'DNTP_CONC': 0.4,
+        'MONOVALENT_CONC': 20,
+        'DIVALENT_CONC': 2
+        })
+    for g in processed:
+        for t in ['designed', 'tiled']:
+            full_list = []
+            full_list += [p.full_seq_linear or p.full_seq for p in g['designed']]
+            full_list += [p.full_seq_linear or p.full_seq for p in g['tiled']]
+            full_list_rc = [manip.reverse_complement(p) for p in full_list]
+            find_linear_primer(g[t], full_list, full_list_rc)
+    # Find pcr amplification oligos
+    # General PCR conditions: 50 mM K+, 1.5mM Mg2+, 0.5 uM primer, 800 uM dNTP
+    primer3.update_params({
+        'DNA_CONC': 500, # As per He and Jiang, 2013
+        'DNTP_CONC': 0.8,
+        'MONOVALENT_CONC': 50,
+        'DIVALENT_CONC': 1.2
+        })
+    for g in processed:
+        for t in ['designed', 'tiled']:
+            full_list = []
+            full_list += [p.full_seq_pcr or p.full_seq for p in g['designed']]
+            full_list += [p.full_seq_pcr or p.full_seq for p in g['tiled']]
+            full_list_rc = [manip.reverse_complement(p) for p in full_list]
+            find_pcr_primers(g[t], full_list, full_list_rc)
+    # Write output
+    outfolder = outfolder or os.path.join(CWD, 'output')
+    for g in processed:
+        tiled_out_fn = os.path.join(outfolder, 'tiled' + os.path.basename(fn))
+        designed_out_fn = os.path.join(outfolder, 'designed' + os.path.basename(fn))
+        with open(tiled_out_fn, 'wb') as tiled_out_fd, \
+              open(designed_out_fn, 'wb') as designed_out_fd:
+            writeOutput(tiled_out_fd, g['tiled'])
+            writeOutput(designed_out_fd, g['designed'])
 
 if __name__ == '__main__':
     import argparse
@@ -344,7 +498,4 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--exclude', nargs='*', help='subsequences to exclude (e.g., restriction sites)')
     parser.add_argument('infiles', nargs='*', help='input files')
     args = parser.parse_args()
-    print args
-    for fn in args.infiles:
-        print fn
-        process_file(fn, outfolder=args.outfolder, exclude_seqs=args.exclude)
+    main(args.infiles, args.outfolder, args.exclude)

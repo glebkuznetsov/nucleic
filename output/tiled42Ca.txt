@@ -1,1 +1,0 @@
-gene_ref	full_primer	t2s	barcode	gs_primer	start_bp	designed	weighted_score	gs_p3_tm	gs_p3_gc	gs_p3_self_any_th	gs_p3_self_end_th	gs_p3_harpin_th	gs_p3_end_stability	gs_p3_penalty	full_p3_homodimer_dg	full_p3_homodimer_ds	full_p3_homodimer_dh	full_ps_homodimer_tm	full_p3_hairpin_dg	full_p3_hairpin_ds	full_p3_hairpin_dh	full_ps_hairpin_tm
