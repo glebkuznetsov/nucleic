@@ -1,10 +1,10 @@
 '''
 nucleic.bindings.primer3 | primer3.py
 
-Low-level subprocess wrappers for the primer3 library. 
+Low-level subprocess wrappers for the primer3 library.
 
 Requires that the primer3 executables ntthal, oligotm, primer3_core, ndtpal,
-and long_seq_tm_test are present in your $PATH. Additionally, the 
+and long_seq_tm_test are present in your $PATH. Additionally, the
 primer3_config folder must be in one of the default locations (see primer3
 documentation). The SETUP_UNIX and SETUP_WINDOWS shell scripts provided with
 this package ensure that these files are in the proper locations.
@@ -141,7 +141,7 @@ def calc_hairpin(seq):
 
 
 def calc_heterodimer(seq, seq2):
-    ''' Return a tuple of the dS, dH, dG, and Tm of any predicted heterodimer. 
+    ''' Return a tuple of the dS, dH, dG, and Tm of any predicted heterodimer.
 
     Returns None if the sequences do not form a heterodimer.
 
@@ -152,7 +152,7 @@ def calc_heterodimer(seq, seq2):
 
 
 def calc_homodimer(seq):
-    ''' Return a tuple of the dS, dH, dG, and Tm of any predicted homodimer. 
+    ''' Return a tuple of the dS, dH, dG, and Tm of any predicted homodimer.
 
     Returns None if the sequence does not form a homodimer.
 

@@ -190,9 +190,9 @@ class Transcript(object):
             'PRIMER_PICK_LEFT_PRIMER': '0',
             'PRIMER_PICK_RIGHT_PRIMER': '1',
             'PRIMER_PICK_INTERNAL_PRIMER': '0',
-            'PRIMER_MAX_SIZE': '16',
-            'PRIMER_MIN_SIZE': '12',
-            'PRIMER_OPT_SIZE': '14',
+            'PRIMER_MAX_SIZE': '15',
+            'PRIMER_MIN_SIZE': '15',
+            'PRIMER_OPT_SIZE': '15',
             'PRIMER_EXPLAIN_FLAG': '1',
             'PRIMER_MIN_TM': '40',
             'PRIMER_OPT_TM': '43',
@@ -306,7 +306,7 @@ def process_file(fn, outfolder=None, exclude_seqs=None):
         t.genTiledPrimers()
         designed_primers.extend(t.primers[:10])
         tiled_primers.extend(t.tiled_primers)
-    return {'fn': fn, 'designed': designed_primers, 
+    return {'fn': fn, 'designed': designed_primers,
             'tiled': tiled_primers}
 
 
@@ -327,14 +327,14 @@ def writeOutput(out_fd, primer_list):
         ip3d = p.init_p3
         fp3d = p.final_p3
         primer_data = '\t'.join(str(x) for x in [p.gene, p.full_seq,
-                               Primer.T2S, p.barcode, p.seq, p.linear, 
+                               Primer.T2S, p.barcode, p.seq, p.linear,
                                manip.reverse_complement(p.full_seq_linear),
                                p.pcr_f, p.pcr_r, p.full_seq_pcr, p.start,
                                p.designed, p.score, ip3d.get('TM'),
                                ip3d.get('GC_PERCENT'), ip3d.get('SELF_ANY_TH'),
                                ip3d.get('SELF_END_TH'), ip3d.get('HAIRPIN_TH'),
                                ip3d.get('END_STABILITY'), ip3d.get('PENALTY'),
-                               fp3d[1][2] if fp3d[1] else 'None', 
+                               fp3d[1][2] if fp3d[1] else 'None',
                                fp3d[1][0] if fp3d[1] else 'None',
                                fp3d[1][1] if fp3d[1] else 'None',
                                fp3d[1][3] if fp3d[1] else 'None',
@@ -352,14 +352,15 @@ def find_linear_primer(primer_object_list, full_list, full_list_rc):
                 ''.join([random.choice('ATGC') for x in range(4)])
             if 'GAGTC' in p[0:15]:
                 continue
-            if filters.max_run(p, max_a=5, max_t=5, max_g=3, max_c=3,
+            if filters.max_run(p, max_a=4, max_t=4, max_g=3, max_c=3,
                                max_at=5, max_gc=4):
-                if 48 < thermo.calc_tm(p, conc_nm=1000.0, monovalent=20.0, 
-                                       divalent=2.0, dntp=0.4) < 52:
-                    scores = primer3.assess_oligo(p)
-                    if not scores[0] or scores[0][3] < 40:
-                        if not scores[1] or scores[1][3] < 40:
-                            return p
+                if filters.three_prime(p, max_gcs=3, max_gc_run=2, max_homopolymer=2):
+                    if 48 < thermo.calc_tm(p, conc_nm=1000.0, monovalent=20.0,
+                                           divalent=2.0, dntp=0.4) < 52:
+                        scores = primer3.assess_oligo(p)
+                        if not scores[0] or scores[0][3] < 40:
+                            if not scores[1] or scores[1][3] < 40:
+                                return p
     while True:
         failed = False
         lp = _gen_primer()
@@ -384,16 +385,31 @@ def find_linear_primer(primer_object_list, full_list, full_list_rc):
 
 
 def find_pcr_primers(primer_object_list, full_list, full_list_rc):
-    def _gen_primer():
+    def _gen_f_primer():
         while True:
-            p = ''.join([random.choice('ATGC') for x in range(15)]) + 'GAGTC' + \
-                ''.join([random.choice('ATGC') for x in range(4)])
-            if 'GAGTC' in p[0:15]:
+            p = ''.join([random.choice('ATGC') for x in range(6)]) + 'GAGGAG' + \
+                ''.join([random.choice('ATGC') for x in range(10)])
+            if 'GAGGAG' in p[0:11] or 'GAGGAG' in p[9:]:
                 continue
             if filters.max_run(p, max_a=5, max_t=5, max_g=3, max_c=3,
                                max_at=5, max_gc=4):
-                if filters.three_prime(p, max_gcs=3, max_gc_run=2):
-                    if 58 < thermo.calc_tm(p, conc_nm=500.0, monovalent=50.0, 
+                if filters.three_prime(p, max_gcs=3, max_gc_run=2, max_homopolymer=2):
+                    if 58 < thermo.calc_tm(p, conc_nm=500.0, monovalent=50.0,
+                                           divalent=1.2, dntp=0.8) < 60:
+                        scores = primer3.assess_oligo(p)
+                        if not scores[0] or scores[0][3] < 40:
+                            if not scores[1] or scores[1][3] < 40:
+                                return p
+    def _gen_r_primer():
+        while True:
+            p = ''.join([random.choice('ATGC') for x in range(12)]) + 'CTCTTC' + \
+                ''.join([random.choice('ATGC') for x in range(4)])
+            if 'CTCTTC' in p[0:17] or 'CTCTTC' in p[14:]:
+                continue
+            if filters.max_run(p, max_a=5, max_t=5, max_g=3, max_c=3,
+                               max_at=5, max_gc=4):
+                if filters.three_prime(p, max_gcs=3, max_gc_run=2, max_homopolymer=2):
+                    if 58 < thermo.calc_tm(p, conc_nm=500.0, monovalent=50.0,
                                            divalent=1.2, dntp=0.8) < 60:
                         scores = primer3.assess_oligo(p)
                         if not scores[0] or scores[0][3] < 40:
@@ -401,7 +417,7 @@ def find_pcr_primers(primer_object_list, full_list, full_list_rc):
                                 return p
     while True:
         failed = False
-        lp = _gen_primer()
+        lp = _gen_f_primer()
         for o in full_list:
             hetero = primer3.calc_heterodimer(lp, o)
             if hetero and hetero[3] > 40:
@@ -421,7 +437,7 @@ def find_pcr_primers(primer_object_list, full_list, full_list_rc):
         p.full_seq_pcr = lp + p.full_seq
     while True:
         failed = False
-        rp = _gen_primer()
+        rp = _gen_r_primer()
         hetero = primer3.calc_heterodimer(lp, rp)
         if hetero and hetero[3] > 40:
             continue
@@ -438,21 +454,21 @@ def find_pcr_primers(primer_object_list, full_list, full_list_rc):
                 failed = True
                 break
         if not failed:
-            break    
+            break
     for p in primer_object_list:
         p.pcr_r = rp
-        p.full_seq_pcr = p.full_seq_pcr + manip.reverse_complement(rp)  
+        p.full_seq_pcr = p.full_seq_pcr + manip.reverse_complement(rp)
     print 'lp', lp, 'rp', rp
 
 
 def main(infiles, outfolder, exclude_seqs):
     processed = []
     for fn in infiles:
-        processed.append(process_file(fn, outfolder=outfolder, 
+        processed.append(process_file(fn, outfolder=outfolder,
                                       exclude_seqs=exclude_seqs))
     # Find linear amplification oligos
     # SDA takes place in 1X thermopol buffer + 0.4 mM dNTP
-    # 10 mM NH4+, 10 mM K+, 2 mM Mg2+ (optimized) 
+    # 10 mM NH4+, 10 mM K+, 2 mM Mg2+ (optimized)
     primer3.update_params({
         'DNA_CONC': 1000, # As per He and Jiang, 2013
         'DNTP_CONC': 0.4,
@@ -484,6 +500,7 @@ def main(infiles, outfolder, exclude_seqs):
     # Write output
     outfolder = outfolder or os.path.join(CWD, 'output')
     for g in processed:
+        fn = g['fn']
         tiled_out_fn = os.path.join(outfolder, 'tiled' + os.path.basename(fn))
         designed_out_fn = os.path.join(outfolder, 'designed' + os.path.basename(fn))
         with open(tiled_out_fn, 'wb') as tiled_out_fd, \
