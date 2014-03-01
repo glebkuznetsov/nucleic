@@ -197,6 +197,6 @@ def calc_thermo(seq, conc_nm=50, monovalent=50, divalent=0.01, dntp=0.0):
     return dH, dS, tm
 
 def calc_tm(seq, conc_nm=50, monovalent=50, divalent=0.01, dntp=0.0):
-    _, _, tm = calc_thermo(seq, conc_nm=50, monovalent=50, divalent=0.01, 
-                           dntp=0.0)
+    _, _, tm = calc_thermo(seq, conc_nm=conc_nm, monovalent=monovalent,
+            divalent=divalent, dntp=dntp)
     return tm
