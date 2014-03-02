@@ -21,12 +21,12 @@ KELVIN = 273.15
 
 def c_to_k(deg_c):
     ''' Convert degrees Celsius to degrees Kelvin ''' 
-    return deg_c - KELVIN
+    return deg_c + KELVIN
 
 
 def k_to_c(deg_k): 
     ''' Convert degrees Kelvin to degrees Celsius ''' 
-    return deg_k + KELVIN 
+    return deg_k - KELVIN
 
 
 def calc_ka(dg, deg_c):
